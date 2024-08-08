@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -29,6 +30,9 @@
 #include "ssd1306_tests.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +56,30 @@
 uint32_t tick;
 uint32_t rotary_out, rot_pos, rot_cnt, rot_prev_pos = 0;
 volatile uint8_t menu_flag = 0;
- uint8_t row_h = 0;
+
+
+// Define menu states
+typedef enum {
+    HOME_SCREEN,
+    MODE_SELECTION,
+    PARAMETER_SETTING,
+	DIGIT_SETTING,
+    RETURN_TO_HOME
+}MenuState;
+
+// Define global variables
+MenuState current_state = HOME_SCREEN;
+int cursor_position = 0;
+int mode_index = 0;  // Store the index of mode setting
+int last_cursor_position = -1, new_rot_pos = 0;
+float volt = 0.0, curr = 0.0, chg = 0.0, temp = 0.0;
+float param_value = 0.0;
+int digit_position = 0;
+int last_rot_cnt = 0;
+uint16_t current_a_cnt = 0, current_b_cnt = 0, current_c_cnt = 0;
+bool rot_sw_state = false, a_sw_state = false, b_sw_state = false, c_sw_state = false;
+bool adjusting_digit = false; // Flag to check if adjusting digit
+volatile uint8_t digit_value = 0;
 
 /* USER CODE END PV */
 
@@ -66,12 +93,35 @@ void myOLED_int8(uint16_t cursorX, uint16_t cursorY, uint8_t data);
 void Move_Cursor(void);
 void Print_Mode(void);
 
+// Function Prototypes
+void display_home_screen(bool force_update);
+void display_mode_selection(bool force_update);
+void display_parameter_setting(bool force_update);
+void display_digit_setting(bool force_update);
+void update_encoder_state();
+void handle_button_press();
+void update_display();
+void update_digit_value(int direction);
+void update_parameter_value(int direction); // New function to update parameter value
+
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 //HAL_TIM_Encoder_Start_IT(&htim3, TIM_CHANNEL_ALL);
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif
 
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+  return ch;
+}
 /* USER CODE END 0 */
 
 /**
@@ -105,9 +155,11 @@ int main(void)
   MX_DMA_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Encoder_Start_IT(&htim3, TIM_CHANNEL_ALL);
   ssd1306_Init();
+  update_display(); // Ensure the initial display is updated
 
   HAL_Delay(100);
 
@@ -125,45 +177,22 @@ int main(void)
 		  HAL_GPIO_WritePin(LED_BLU_GPIO_Port, LED_BLU_Pin, 1);
 		  menu_flag = 2;
 	  }
-//	  }else menu_flag = 0;
 
+//      printf("Hello World\n\r\v");
+
+      update_encoder_state();
+      handle_button_press();
+      update_display();
+      printf("current_state %d\n\r", current_state);
+      printf("digit_position %d\n\r", digit_position);
+      printf("cursor_position %d\n\r", cursor_position);
+      printf("mode_index %d\n\r\v", mode_index);
+
+	  HAL_Delay(200); // Adjust the delay as needed
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  switch(menu_flag){
-	  case 0:
-		  myOLED_char(1, 0, 	"Volt = ");
-		  myOLED_char(1, 12, 	"Curr = ");
-		  myOLED_char(1, 24, 	"Chg  = ");
-		  myOLED_char(1, 36, 	"Temp = ");
-		  menu_flag = 1;
-		  break;
-
-	  case 1:
-		  myOLED_float(50, 0, 9.129);
-		  myOLED_float(50, 12, 2.312);
-		  myOLED_int(50, 24, tick);
-		  myOLED_int(50, 36, 30);
-		  myOLED_char(10, 48, "<PRESS TO SET>");
-		  break;
-
-	  case 2:
-		  Print_Mode();
-		  menu_flag = 3;
-		  break;
-
-	  case 3:
-		  Move_Cursor();
-		  break;
-
-	  default:
-		  break;
-	  }
-
-
-
-	  ssd1306_UpdateScreen();
 
   }
   /* USER CODE END 3 */
@@ -214,6 +243,30 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	rot_cnt = rotary_out / 4;
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	switch(GPIO_Pin){
+	case ROT_SW_Pin:
+		rot_sw_state = true;
+		break;
+	case A_SW_Pin:
+		a_sw_state = true;
+		current_a_cnt++;
+		break;
+	case B_SW_Pin:
+		b_sw_state = true;
+		current_b_cnt++;
+		break;
+	case C_SW_Pin:
+		c_sw_state = true;
+		current_c_cnt++;
+		break;
+	default:
+//		a_sw_state = b_sw_state = c_sw_state = false;
+		break;
+	}
+}
+
 void myOLED_char(uint16_t cursorX, uint16_t cursorY, char* data){
 
 	ssd1306_SetCursor(cursorX, cursorY);
@@ -244,32 +297,339 @@ void myOLED_int8(uint16_t cursorX, uint16_t cursorY, uint8_t data){
 	ssd1306_WriteString(str_data, Font_7x10, White);
 }
 
-void Print_Mode(void){
-	  ssd1306_Fill(Black);
-	  myOLED_char(15, 0, 	"<CONST_VOLT>");
-	  myOLED_char(15, 12, 	"<CONST_CURR>");
-	  myOLED_char(15, 24, 	"<CONST_PWR>");
-	  ssd1306_UpdateScreen();
-	  HAL_Delay(200);
+// Update Display
+void update_display() {
+    static MenuState last_state = HOME_SCREEN;
+    static bool first_update = true;
+    bool force_update = (current_state != last_state) || first_update;
+
+    if (force_update) {
+        last_state = current_state;
+        last_cursor_position = -1; // Force full update on state change
+        first_update = false;
+    }
+
+    // Handle cursor position updates separately
+    bool cursor_changed = (cursor_position != last_cursor_position);
+
+    switch (current_state) {
+        case HOME_SCREEN:
+            display_home_screen(force_update || cursor_changed);
+            break;
+        case MODE_SELECTION:
+            display_mode_selection(force_update || cursor_changed);
+            break;
+        case PARAMETER_SETTING:
+            display_parameter_setting(force_update || cursor_changed);
+            break;
+        case DIGIT_SETTING:
+        	display_digit_setting(force_update || cursor_changed);
+        	break;
+        case RETURN_TO_HOME:
+            current_state = HOME_SCREEN;
+            break;
+    }
+
+    last_cursor_position = cursor_position;
 }
 
-void Move_Cursor(void){
-	  if(rot_prev_pos < rot_pos){
-		  myOLED_char(0, 0, "->");
-	  }
-	  rot_prev_pos = rot_pos;
-	  rot_pos = rot_cnt;
-	  if (rot_pos == (rot_prev_pos + 1)) {
-		  row_h = row_h+12;
-		  Print_Mode();
-		  myOLED_char(0, row_h, "->");
-	  }else if (rot_pos == (rot_prev_pos - 1)) {
-		  row_h = row_h-12;
-		  Print_Mode();
-		  myOLED_char(0, row_h, "->");
+// Display Home Screen
+void display_home_screen(bool force_update) {
+    if (force_update) {
+        myOLED_char(0, 0, "VOLT:   ");
+        myOLED_float(50, 0, volt);
+        myOLED_char(0, 10, "CURR:   ");
+        myOLED_float(50, 10, curr);
+        myOLED_char(0, 20, "CHG:    ");
+        myOLED_float(50, 20, chg);
+        myOLED_char(0, 30, "TEMP:");
+        myOLED_float(50, 30, temp);
+        myOLED_char(0, 40, "                  ");
+        myOLED_char(15, 50, "SET    ");
+        myOLED_char(70, 50, "TURN ON");
+    }
+
+    // Update cursor only
+    if (cursor_position == 0) {
+        myOLED_char(0, 50, "->");
+        myOLED_char(55, 50, "  "); // Clear other arrow
+    } else {
+        myOLED_char(0, 50, "  "); // Clear other arrow
+        myOLED_char(55, 50, "->");
+    }
+    ssd1306_UpdateScreen();
 }
 
+// Display Mode Selection Screen
+void display_mode_selection(bool force_update) {
+    const char* modes[] = {"CC", "CV", "CP", "CR"};
+    if (force_update) {
+        ssd1306_Fill(Black); // Clear the screen
+        for (int i = 0; i < 4; i++) {
+            myOLED_char(15, i * 10, (char*)modes[i]); // Print modes in column
+        }
+    }
+
+    // Update cursor only
+    for (int i = 0; i < 4; i++) {
+        if (i == cursor_position) {
+            myOLED_char(0, i* 10, "->");
+        } else {
+            myOLED_char(0, i* 10, "  ");
+        }
+    }
+
+    myOLED_char(5, 50, "<SELECT THE MODE>");
+    ssd1306_UpdateScreen();
 }
+
+// Display Parameter Setting Screen
+//void display_parameter_setting(bool force_update) {
+//    char buffer[10];
+//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
+//
+//    if (force_update) {
+//        ssd1306_Fill(Black); // Clear the screen
+//        for (int i = 0; i < 7; i++) {
+//            char ch[2] = {buffer[i], '\0'};
+//            myOLED_char(i * 10, 0, ch);
+//        }
+//    }
+//
+//    // Update cursor only
+//    for (int i = 0; i < 7; i++) {
+//        if (i == digit_position) {
+//            myOLED_char(i * 10, 10, "^");
+//        } else {
+//            myOLED_char(i * 10, 10, " ");
+//        }
+//    }
+//    myOLED_char(0, 50, "OK");
+//    ssd1306_UpdateScreen();
+//}
+
+void display_parameter_setting(bool force_update) {
+    if (force_update) {
+        // Redraw entire screen if forced
+        ssd1306_Fill(Black);
+        myOLED_char(0, 0, "Set Value:");
+        myOLED_char(20, 40, "RETURN");
+
+        // Check the state and print the mode in parameter setting screen
+        if(current_state == 2){
+        	switch(mode_index) {
+        		case 0:
+                	myOLED_char(70, 0, "CC");
+                	break;
+        		case 1:
+        			myOLED_char(70, 0, "CV");
+        			break;
+        		case 2:
+        			myOLED_char(70, 0, "CP");
+        			break;
+        		case 3:
+        			myOLED_char(70, 0, "CR");
+                	break;
+        		default:
+        			break;
+        	}
+        }
+    }
+
+//    printf("cursor_pos param = %d\n\v\r", cursor_position);
+
+    // Always update the current digit and value
+    char buffer[8]; // "00.000" format has 6 characters + 1 for null terminator
+    snprintf(buffer, sizeof(buffer), "%05.3f", param_value);
+    myOLED_char(10, 20, buffer);
+
+    // Clear previous cursor position by redrawing the entire line
+    ssd1306_SetCursor(0, 30);
+    ssd1306_WriteString("        ", Font_7x10, White);  // Assuming 7 characters wide space to clear
+
+    // Draw cursor under the digit
+    int cursor_x = digit_position * 8;  // Assuming 7 pixels width per character
+//    int cursot_y = 50;
+    if(digit_position == 7){
+    	myOLED_char(40, 50, "^");  // Draw the cursor
+    }else{
+    	myOLED_char(cursor_x, 30, "^");  // Draw the cursor
+    }
+
+    // Refresh the display after updating
+    ssd1306_UpdateScreen();
+}
+
+
+
+
+// Display Digit in parameter setting mode
+void display_digit_setting(bool force_update){
+
+}
+
+
+// Update Encoder State
+void update_encoder_state() {
+    int new_rot_pos = rot_cnt;
+    static int old_rot_pos = 0;
+
+    if (new_rot_pos > old_rot_pos) {
+        if (current_state == PARAMETER_SETTING) {
+            if (adjusting_digit) {
+                update_parameter_value(1); // Increment digit
+            } else {
+                digit_position++;
+            }
+        } else {
+            cursor_position++;
+        }
+    } else if (new_rot_pos < old_rot_pos) {
+        if (current_state == PARAMETER_SETTING) {
+            if (adjusting_digit) {
+                update_parameter_value(-1); // Decrement digit
+            } else {
+                digit_position--;
+            }
+        } else {
+            cursor_position--;
+        }
+    }
+    old_rot_pos = new_rot_pos;
+
+    // putting limits
+    if (cursor_position < 0) cursor_position = 0;
+    if (current_state == HOME_SCREEN && cursor_position > 1) cursor_position = 1;
+    if (current_state == MODE_SELECTION && cursor_position > 3) cursor_position = 3;
+    if (current_state == PARAMETER_SETTING && digit_position > 7) digit_position = 7;
+    if (digit_position < 0) digit_position = 0;
+}
+
+
+// Update Parameter Value
+//void update_parameter_value(int direction) {
+//    char buffer[10];
+//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
+//
+//    int digit_index = (digit_position < 3) ? digit_position : digit_position + 1; // Skip the decimal point
+//    int digit = buffer[digit_index] - '0';
+//    digit = (digit + direction + 10) % 10; // Wrap around digit value
+//    buffer[digit_index] = digit + '0';
+//
+//    param_value = strtof(buffer, NULL);
+//}
+
+
+//void update_parameter_value(int direction) {
+//    char buffer[10];
+//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
+//
+//    // Debug: Print the initial buffer
+//    printf("Initial buffer: %s\n\r", buffer);
+//
+//    int digit_index = (digit_position < 3) ? digit_position : digit_position + 1; // Skip the decimal point
+//
+//    // Debug: Print digit position and digit index
+//    printf("Digit position: %d, Digit index: %d\n\r", digit_position, digit_index);
+//
+//    int digit = buffer[digit_index] - '0';
+//
+//    // Debug: Print the current digit before modification
+//    printf("Current digit: %d\n\r", digit);
+//
+//    digit = (digit + direction + 10) % 10; // Wrap around digit value
+//
+//    // Debug: Print the updated digit
+//    printf("Updated digit: %d\n\r", digit);
+//
+//    buffer[digit_index] = digit + '0';
+//
+//    // Debug: Print the updated buffer
+//    printf("Updated buffer: %s\n\r", buffer);
+//
+//    param_value = strtof(buffer, NULL);
+//
+//    // Debug: Print the new param_value
+//    printf("Updated param_value: %f\n\r\v", param_value);
+//}
+
+void update_parameter_value(int direction) {
+    int integer_part = (int)param_value;
+    float fractional_part = param_value - integer_part;
+
+    // Adjust digit position for integer or fractional part
+    if (digit_position < 3) {
+        // Update integer part
+        int multiplier = pow(10, 2 - digit_position);
+        integer_part += direction * multiplier;
+
+        // Ensure the integer part stays within valid range (e.g., 000 to 999)
+        if (integer_part < 0) {
+            integer_part += 1000;
+        } else if (integer_part >= 1000) {
+            integer_part -= 1000;
+        }
+
+    } else {
+        // Update fractional part
+        int multiplier = pow(10, 5 - digit_position); // Positions after the decimal
+        int fractional_int = fractional_part * 1000;
+        fractional_int += direction * multiplier;
+
+        // Ensure the fractional part stays within valid range (e.g., 000 to 999)
+        if (fractional_int < 0) {
+            fractional_int += 1000;
+        } else if (fractional_int >= 1000) {
+            fractional_int -= 1000;
+        }
+
+        fractional_part = fractional_int / 1000.0;
+    }
+
+    // Combine integer part and modified fractional part
+    param_value = integer_part + fractional_part;
+
+    // Debug: Print the updated param_value
+    printf("Updated param_value: %f\n\r\v", param_value);
+}
+
+
+
+void handle_button_press() {
+    if (rot_sw_state) {
+    	switch (current_state) {
+			case HOME_SCREEN:
+				if (cursor_position == 0) {
+					current_state = MODE_SELECTION;
+				} else {
+					// Handle "TURN ON" functionality
+				}
+				break;
+			case MODE_SELECTION:
+				current_state = PARAMETER_SETTING;
+				mode_index = cursor_position;
+				cursor_position = 0;
+				adjusting_digit = false;
+				break;
+			case PARAMETER_SETTING:
+				if (adjusting_digit) {
+					adjusting_digit = false; // Stop adjusting the digit
+				} else {
+					adjusting_digit = true; // Start adjusting the digit
+				}
+				if (digit_position == 7) {
+					current_state = RETURN_TO_HOME;
+					digit_position = 0;
+				}
+				break;
+			default:
+				break;
+        }
+        rot_sw_state = false; // Reset button state
+    }
+}
+
+
 /* USER CODE END 4 */
 
 /**
