@@ -42,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define MAX_DIGITS 6
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -63,7 +63,6 @@ typedef enum {
     HOME_SCREEN,
     MODE_SELECTION,
     PARAMETER_SETTING,
-	DIGIT_SETTING,
     RETURN_TO_HOME
 }MenuState;
 
@@ -73,7 +72,7 @@ int cursor_position = 0;
 int mode_index = 0;  // Store the index of mode setting
 int last_cursor_position = -1, new_rot_pos = 0;
 float volt = 0.0, curr = 0.0, chg = 0.0, temp = 0.0;
-float param_value = 0.0;
+float param_value = 00.0;
 int digit_position = 0;
 int last_rot_cnt = 0;
 uint16_t current_a_cnt = 0, current_b_cnt = 0, current_c_cnt = 0;
@@ -172,10 +171,9 @@ int main(void)
 	  tick = HAL_GetTick();
 
 	  HAL_GPIO_TogglePin(LED_BLU_GPIO_Port, LED_BLU_Pin);
-	  HAL_Delay(100);
+//	  HAL_Delay(100);
 	  if(HAL_GPIO_ReadPin(ROT_SW_GPIO_Port, ROT_SW_Pin) == 0){
 		  HAL_GPIO_WritePin(LED_BLU_GPIO_Port, LED_BLU_Pin, 1);
-		  menu_flag = 2;
 	  }
 
 //      printf("Hello World\n\r\v");
@@ -188,7 +186,7 @@ int main(void)
       printf("cursor_position %d\n\r", cursor_position);
       printf("mode_index %d\n\r\v", mode_index);
 
-	  HAL_Delay(200); // Adjust the delay as needed
+	  HAL_Delay(0); // Adjust the delay as needed
 
     /* USER CODE END WHILE */
 
@@ -322,12 +320,11 @@ void update_display() {
         case PARAMETER_SETTING:
             display_parameter_setting(force_update || cursor_changed);
             break;
-        case DIGIT_SETTING:
-        	display_digit_setting(force_update || cursor_changed);
-        	break;
         case RETURN_TO_HOME:
             current_state = HOME_SCREEN;
             break;
+        default:
+        	break;
     }
 
     last_cursor_position = cursor_position;
@@ -383,30 +380,6 @@ void display_mode_selection(bool force_update) {
     ssd1306_UpdateScreen();
 }
 
-// Display Parameter Setting Screen
-//void display_parameter_setting(bool force_update) {
-//    char buffer[10];
-//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
-//
-//    if (force_update) {
-//        ssd1306_Fill(Black); // Clear the screen
-//        for (int i = 0; i < 7; i++) {
-//            char ch[2] = {buffer[i], '\0'};
-//            myOLED_char(i * 10, 0, ch);
-//        }
-//    }
-//
-//    // Update cursor only
-//    for (int i = 0; i < 7; i++) {
-//        if (i == digit_position) {
-//            myOLED_char(i * 10, 10, "^");
-//        } else {
-//            myOLED_char(i * 10, 10, " ");
-//        }
-//    }
-//    myOLED_char(0, 50, "OK");
-//    ssd1306_UpdateScreen();
-//}
 
 void display_parameter_setting(bool force_update) {
     if (force_update) {
@@ -439,34 +412,31 @@ void display_parameter_setting(bool force_update) {
 //    printf("cursor_pos param = %d\n\v\r", cursor_position);
 
     // Always update the current digit and value
-    char buffer[8]; // "00.000" format has 6 characters + 1 for null terminator
-    snprintf(buffer, sizeof(buffer), "%05.3f", param_value);
-    myOLED_char(10, 20, buffer);
+    if(param_value >= 10.000){
+    	myOLED_float(0, 20, param_value);
+    }else{
+    	myOLED_float(7, 20, param_value);
+    	myOLED_int(0, 20, 0);				// Print "0" at fist location
+    }
 
     // Clear previous cursor position by redrawing the entire line
     ssd1306_SetCursor(0, 30);
     ssd1306_WriteString("        ", Font_7x10, White);  // Assuming 7 characters wide space to clear
 
     // Draw cursor under the digit
-    int cursor_x = digit_position * 8;  // Assuming 7 pixels width per character
+    int cursor_x = digit_position * 7;  // Assuming 7 pixels width per character
 //    int cursot_y = 50;
-    if(digit_position == 7){
-    	myOLED_char(40, 50, "^");  // Draw the cursor
+    if(digit_position == MAX_DIGITS){
+    	myOLED_char(40, 50, "^");  // Draw the cursor under "RETURN" text
     }else{
-    	myOLED_char(cursor_x, 30, "^");  // Draw the cursor
+    	myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
+    	myOLED_char(40, 50, " ");			// Clears the cursor under "RETURN" label
     }
 
     // Refresh the display after updating
     ssd1306_UpdateScreen();
 }
 
-
-
-
-// Display Digit in parameter setting mode
-void display_digit_setting(bool force_update){
-
-}
 
 
 // Update Encoder State
@@ -501,97 +471,69 @@ void update_encoder_state() {
     if (cursor_position < 0) cursor_position = 0;
     if (current_state == HOME_SCREEN && cursor_position > 1) cursor_position = 1;
     if (current_state == MODE_SELECTION && cursor_position > 3) cursor_position = 3;
-    if (current_state == PARAMETER_SETTING && digit_position > 7) digit_position = 7;
+    if (current_state == PARAMETER_SETTING && digit_position > MAX_DIGITS) digit_position = MAX_DIGITS;
     if (digit_position < 0) digit_position = 0;
 }
 
 
-// Update Parameter Value
-//void update_parameter_value(int direction) {
-//    char buffer[10];
-//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
-//
-//    int digit_index = (digit_position < 3) ? digit_position : digit_position + 1; // Skip the decimal point
-//    int digit = buffer[digit_index] - '0';
-//    digit = (digit + direction + 10) % 10; // Wrap around digit value
-//    buffer[digit_index] = digit + '0';
-//
-//    param_value = strtof(buffer, NULL);
-//}
-
-
-//void update_parameter_value(int direction) {
-//    char buffer[10];
-//    snprintf(buffer, sizeof(buffer), "%06.3f", param_value);
-//
-//    // Debug: Print the initial buffer
-//    printf("Initial buffer: %s\n\r", buffer);
-//
-//    int digit_index = (digit_position < 3) ? digit_position : digit_position + 1; // Skip the decimal point
-//
-//    // Debug: Print digit position and digit index
-//    printf("Digit position: %d, Digit index: %d\n\r", digit_position, digit_index);
-//
-//    int digit = buffer[digit_index] - '0';
-//
-//    // Debug: Print the current digit before modification
-//    printf("Current digit: %d\n\r", digit);
-//
-//    digit = (digit + direction + 10) % 10; // Wrap around digit value
-//
-//    // Debug: Print the updated digit
-//    printf("Updated digit: %d\n\r", digit);
-//
-//    buffer[digit_index] = digit + '0';
-//
-//    // Debug: Print the updated buffer
-//    printf("Updated buffer: %s\n\r", buffer);
-//
-//    param_value = strtof(buffer, NULL);
-//
-//    // Debug: Print the new param_value
-//    printf("Updated param_value: %f\n\r\v", param_value);
-//}
-
 void update_parameter_value(int direction) {
-    int integer_part = (int)param_value;
-    float fractional_part = param_value - integer_part;
+    // Convert the whole value to an integer, treating it as 00.000 (in this case, a 5-digit number)
+    int full_value = (int)(param_value * 1000);
 
-    // Adjust digit position for integer or fractional part
-    if (digit_position < 3) {
-        // Update integer part
-        int multiplier = pow(10, 2 - digit_position);
-        integer_part += direction * multiplier;
+    // Determine the position and multiplier
+    int multiplier = 1;
 
-        // Ensure the integer part stays within valid range (e.g., 000 to 999)
-        if (integer_part < 0) {
-            integer_part += 1000;
-        } else if (integer_part >= 1000) {
-            integer_part -= 1000;
+    switch (digit_position) {
+        case 0:
+            multiplier = 10000;  // Corresponds to the tens digit of the integer part
+            break;
+        case 1:
+            multiplier = 1000;   // Corresponds to the units digit of the integer part
+            break;
+        case 2:
+            // Do nothing as this is the decimal point
+            return;
+        case 3:
+            multiplier = 100;    // Corresponds to the first digit after the decimal point
+            break;
+        case 4:
+            multiplier = 10;     // Corresponds to the second digit after the decimal point
+            break;
+        case 5:
+            multiplier = 1;      // Corresponds to the third digit after the decimal point
+            break;
+    }
+
+    // Store the original integer part before updating
+    int original_integer_part = full_value / 1000;
+
+    // Update the selected digit
+    full_value += direction * multiplier;
+
+    // Wrap the relevant digit only
+    if (digit_position <= 1) {  // If modifying the integer part
+        if (full_value < 0) {
+            full_value += 100000;  // Wrap within the range of 00.000 to 99.999
+        } else if (full_value >= 100000) {
+            full_value -= 100000;
         }
-
-    } else {
-        // Update fractional part
-        int multiplier = pow(10, 5 - digit_position); // Positions after the decimal
-        int fractional_int = fractional_part * 1000;
-        fractional_int += direction * multiplier;
-
-        // Ensure the fractional part stays within valid range (e.g., 000 to 999)
+    } else {  // If modifying the fractional part
+        int fractional_int = full_value % 1000;
         if (fractional_int < 0) {
-            fractional_int += 1000;
+            fractional_int += 1000;  // Wrap within the range of 000 to 999
         } else if (fractional_int >= 1000) {
             fractional_int -= 1000;
         }
-
-        fractional_part = fractional_int / 1000.0;
+        full_value = (original_integer_part * 1000) + fractional_int;
     }
 
-    // Combine integer part and modified fractional part
-    param_value = integer_part + fractional_part;
+    // Convert back to floating-point value
+    param_value = full_value / 1000.0;
 
     // Debug: Print the updated param_value
-    printf("Updated param_value: %f\n\r\v", param_value);
+    printf("Updated param_value: %05d.%03d\n\r", full_value / 1000, full_value % 1000);
 }
+
 
 
 
@@ -617,7 +559,7 @@ void handle_button_press() {
 				} else {
 					adjusting_digit = true; // Start adjusting the digit
 				}
-				if (digit_position == 7) {
+				if (digit_position == MAX_DIGITS) {
 					current_state = RETURN_TO_HOME;
 					digit_position = 0;
 				}
