@@ -77,10 +77,19 @@ typedef enum {
     MODE_SELECTION,
     PARAMETER_SETTING,
     RETURN_TO_HOME
-}MenuState;
+}Menu_State_e;
+
+typedef struct {
+	float voltage;
+	float current;
+	float power;
+	float resistance;
+}Param_Mode_t;
 
 // Define global variables
-MenuState current_state = HOME_SCREEN;
+Menu_State_e current_state = HOME_SCREEN;
+Param_Mode_t param_mode	= {0.0};
+
 int cursor_position = 0;
 int mode_index = -1;  // Store the index of mode setting
 int last_cursor_position = -1, new_rot_pos = 0;
@@ -309,7 +318,7 @@ void myOLED_int8(uint16_t cursorX, uint16_t cursorY, uint8_t data){
 
 // Update Display
 void update_display() {
-    static MenuState last_state = HOME_SCREEN;
+    static Menu_State_e last_state = HOME_SCREEN;
     static bool first_update = true;
     bool force_update = (current_state != last_state) || first_update;
 
@@ -355,18 +364,20 @@ void display_home_screen(bool force_update) {
         myOLED_char(0, 30, "TP:");
         myOLED_float(21, 30, temp);
         ssd1306_Line(70, 0, 70, 64, White);		// Draw line to separate the values and options
-        myOLED_char(90, 0, "<SET>");
-        myOLED_char(90, 10, "<ON>");
+        myOLED_char(90, 0, "<SET>");			// SET MODE
+        myOLED_char(90, 10, "<ON>");			// Turn ON LOAD TODO
+        myOLED_char(90, 20, "<RST>");			// TODO
+        myOLED_char(90, 30, "<HLP>");			// TODO
     }
 
     // Update cursor only
-    if (cursor_position == 0) {
-        myOLED_char(75, 0, "->");
-        myOLED_char(75, 10, "  "); // Clear other arrow
-    } else {
-        myOLED_char(75, 0, "  "); // Clear other arrow
-        myOLED_char(75, 10, "->");
-    }
+    for (int i = 0; i < 4; i++) {
+            if (i == cursor_position) {
+                myOLED_char(75, i* 10, "->");
+            } else {
+                myOLED_char(75, i* 10, "  ");
+            }
+        }
 
     // Display the param value and mode
     if(current_state == 0){
@@ -512,7 +523,7 @@ void update_encoder_state() {
     put_parameter_limit();		// put limit on parameter values based on mode
     // putting limits
     if (cursor_position < 0) cursor_position = 0;
-    if (current_state == HOME_SCREEN && cursor_position > 1) cursor_position = 1;
+    if (current_state == HOME_SCREEN && cursor_position > 3) cursor_position = 3;
     if (current_state == MODE_SELECTION && cursor_position > 3) cursor_position = 3;
     if (current_state == PARAMETER_SETTING && digit_position > MAX_DIGITS) digit_position = MAX_DIGITS;
     if (digit_position < 0) digit_position = 0;
