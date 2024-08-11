@@ -42,7 +42,20 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MAX_DIGITS 6
+#define MAX_DIGITS 				6
+
+/*
+ * MAXIMUM AND MINIMUM SETTINGS FOR LOAD
+ */
+#define MAX_CC_VALUE			5.0			// 5A maximum current
+#define MIN_CC_VALUE			0.001		// 1mA minimum	current
+#define MAX_CV_VALUE			30			// 30V maximum voltage
+#define MIN_CV_VALUE			3			// 3V minimum voltage
+#define MAX_CR_VALUE			10			// 10Ohm maximum resistance
+#define MIN_CR_VALUE			0.1			// 100mOhm minimum resistance
+#define MAX_CP_VALUE			150			// 150W maximum power
+#define MIN_CP_VALUE			1			// 1W minimum power
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,10 +82,10 @@ typedef enum {
 // Define global variables
 MenuState current_state = HOME_SCREEN;
 int cursor_position = 0;
-int mode_index = 0;  // Store the index of mode setting
+int mode_index = -1;  // Store the index of mode setting
 int last_cursor_position = -1, new_rot_pos = 0;
 float volt = 0.0, curr = 0.0, chg = 0.0, temp = 0.0;
-float param_value = 00.0;
+float param_value = 00.0, param_value_limit = 0.0;
 int digit_position = 0;
 int last_rot_cnt = 0;
 uint16_t current_a_cnt = 0, current_b_cnt = 0, current_c_cnt = 0;
@@ -96,13 +109,12 @@ void Print_Mode(void);
 void display_home_screen(bool force_update);
 void display_mode_selection(bool force_update);
 void display_parameter_setting(bool force_update);
-void display_digit_setting(bool force_update);
 void update_encoder_state();
 void handle_button_press();
 void update_display();
 void update_digit_value(int direction);
-void update_parameter_value(int direction); // New function to update parameter value
-
+void update_parameter_value(int direction); // function to update parameter value
+void put_parameter_limit(void);				// put limit on parameter values
 
 
 /* USER CODE END PFP */
@@ -333,15 +345,16 @@ void update_display() {
 // Display Home Screen
 void display_home_screen(bool force_update) {
     if (force_update) {
+        ssd1306_Fill(Black);			// Clear the display before printing
         myOLED_char(0, 0, "VOLT:   ");
-        myOLED_float(50, 0, volt);
+        myOLED_float(40, 0, volt);
         myOLED_char(0, 10, "CURR:   ");
-        myOLED_float(50, 10, curr);
-        myOLED_char(0, 20, "CHG:    ");
-        myOLED_float(50, 20, chg);
+        myOLED_float(40, 10, curr);
+        myOLED_char(0, 20, "CHG :    ");
+        myOLED_float(40, 20, chg);
         myOLED_char(0, 30, "TEMP:");
-        myOLED_float(50, 30, temp);
-        myOLED_char(0, 40, "                  ");
+        myOLED_float(40, 30, temp);
+//        myOLED_char(0, 40, "                  ");
         myOLED_char(15, 50, "SET    ");
         myOLED_char(70, 50, "TURN ON");
     }
@@ -353,6 +366,35 @@ void display_home_screen(bool force_update) {
     } else {
         myOLED_char(0, 50, "  "); // Clear other arrow
         myOLED_char(55, 50, "->");
+    }
+
+    // Display the param value and mode
+    if(current_state == 0){
+    	switch (mode_index){
+    	case 0:
+    		myOLED_char(90, 0, "CC");
+
+    		break;
+
+    	case 1:
+			myOLED_char(90, 0, "CV");
+
+    		break;
+
+    	case 2:
+			myOLED_char(90, 0, "CP");
+
+    		break;
+
+    	case 3:
+			myOLED_char(90, 0, "CR");
+
+    		break;
+
+    	default:
+    		break;
+
+    	}
     }
     ssd1306_UpdateScreen();
 }
@@ -389,19 +431,24 @@ void display_parameter_setting(bool force_update) {
         myOLED_char(20, 40, "RETURN");
 
         // Check the state and print the mode in parameter setting screen
+        // Also check the MIN and MAX value of each mode to set limits on the value.
         if(current_state == 2){
         	switch(mode_index) {
         		case 0:
                 	myOLED_char(70, 0, "CC");
+                	myOLED_char(70, 20, "Amp");
                 	break;
         		case 1:
         			myOLED_char(70, 0, "CV");
+        			myOLED_char(70, 20, "Volt");
         			break;
         		case 2:
         			myOLED_char(70, 0, "CP");
+        			myOLED_char(70, 20, "Watt");
         			break;
         		case 3:
         			myOLED_char(70, 0, "CR");
+        			myOLED_char(70, 20, "Ohm");
                 	break;
         		default:
         			break;
@@ -409,7 +456,7 @@ void display_parameter_setting(bool force_update) {
         }
     }
 
-//    printf("cursor_pos param = %d\n\v\r", cursor_position);
+    printf("mode_index %d\n\v\r", mode_index);
 
     // Always update the current digit and value
     if(param_value >= 10.000){
@@ -466,7 +513,7 @@ void update_encoder_state() {
         }
     }
     old_rot_pos = new_rot_pos;
-
+    put_parameter_limit();		// put limit on parameter values based on mode
     // putting limits
     if (cursor_position < 0) cursor_position = 0;
     if (current_state == HOME_SCREEN && cursor_position > 1) cursor_position = 1;
@@ -475,7 +522,7 @@ void update_encoder_state() {
     if (digit_position < 0) digit_position = 0;
 }
 
-
+// Update parameter value
 void update_parameter_value(int direction) {
     // Convert the whole value to an integer, treating it as 00.000 (in this case, a 5-digit number)
     int full_value = (int)(param_value * 1000);
@@ -532,6 +579,45 @@ void update_parameter_value(int direction) {
 
     // Debug: Print the updated param_value
     printf("Updated param_value: %05d.%03d\n\r", full_value / 1000, full_value % 1000);
+}
+
+// Put limit on parameter value
+void put_parameter_limit(){
+	// check the MIN and MAX value of each mode to set limits on the value.
+	if(current_state == 2){
+		switch(mode_index) {
+			case 0:
+				if(param_value >= MAX_CC_VALUE){
+					param_value = MAX_CC_VALUE;
+				}else if(param_value <= MIN_CC_VALUE){
+					param_value = MIN_CC_VALUE;
+				}
+				break;
+			case 1:
+				if(param_value >= MAX_CV_VALUE){
+					param_value = MAX_CV_VALUE;
+				}else if(param_value <= MIN_CV_VALUE){
+					param_value = MIN_CV_VALUE;
+				}
+				break;
+			case 2:
+				if(param_value >= MAX_CP_VALUE){
+					param_value = MAX_CP_VALUE;
+				}else if(param_value <= MIN_CP_VALUE){
+					param_value = MIN_CP_VALUE;
+				}
+				break;
+			case 3:
+				if(param_value >= MAX_CR_VALUE){
+					param_value = MAX_CR_VALUE;
+				}else if(param_value <= MIN_CR_VALUE){
+					param_value = MIN_CR_VALUE;
+				}
+				break;
+			default:
+				break;
+		}
+	}
 }
 
 
