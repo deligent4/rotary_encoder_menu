@@ -9,10 +9,10 @@
 ../Core/Src/main.c:302:6:myOLED_int8	1
 ../Core/Src/main.c:311:6:update_display	14
 ../Core/Src/main.c:346:6:display_home_screen	8
-../Core/Src/main.c:403:6:display_mode_selection	5
-../Core/Src/main.c:426:6:display_parameter_setting	9
-../Core/Src/main.c:510:6:update_encoder_state	15
-../Core/Src/main.c:546:6:update_parameter_value	12
-../Core/Src/main.c:605:6:put_parameter_limit	14
-../Core/Src/main.c:646:6:handle_button_press	9
-../Core/Src/main.c:687:6:Error_Handler	1
+../Core/Src/main.c:399:6:display_mode_selection	5
+../Core/Src/main.c:422:6:display_parameter_setting	9
+../Core/Src/main.c:486:6:update_encoder_state	15
+../Core/Src/main.c:522:6:update_parameter_value	12
+../Core/Src/main.c:581:6:put_parameter_limit	14
+../Core/Src/main.c:622:6:handle_button_press	9
+../Core/Src/main.c:663:6:Error_Handler	1

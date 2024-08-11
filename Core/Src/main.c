@@ -53,7 +53,7 @@
 #define MIN_CV_VALUE			3			// 3V minimum voltage
 #define MAX_CR_VALUE			10			// 10Ohm maximum resistance
 #define MIN_CR_VALUE			0.1			// 100mOhm minimum resistance
-#define MAX_CP_VALUE			150			// 150W maximum power
+#define MAX_CP_VALUE			99.999		// 99.999W maximum power CP is limited to 99.999Watt
 #define MIN_CP_VALUE			1			// 1W minimum power
 
 /* USER CODE END PD */
@@ -346,55 +346,51 @@ void update_display() {
 void display_home_screen(bool force_update) {
     if (force_update) {
         ssd1306_Fill(Black);			// Clear the display before printing
-        myOLED_char(0, 0, "VOLT:   ");
-        myOLED_float(40, 0, volt);
-        myOLED_char(0, 10, "CURR:   ");
-        myOLED_float(40, 10, curr);
-        myOLED_char(0, 20, "CHG :    ");
-        myOLED_float(40, 20, chg);
-        myOLED_char(0, 30, "TEMP:");
-        myOLED_float(40, 30, temp);
-//        myOLED_char(0, 40, "                  ");
-        myOLED_char(15, 50, "SET    ");
-        myOLED_char(70, 50, "TURN ON");
+        myOLED_char(0, 0, "VT:");
+        myOLED_float(21, 0, volt);
+        myOLED_char(0, 10, "CU:");
+        myOLED_float(21, 10, curr);
+        myOLED_char(0, 20, "CH:");
+        myOLED_float(21, 20, chg);
+        myOLED_char(0, 30, "TP:");
+        myOLED_float(21, 30, temp);
+        ssd1306_Line(70, 0, 70, 64, White);		// Draw line to separate the values and options
+        myOLED_char(90, 0, "<SET>");
+        myOLED_char(90, 10, "<ON>");
     }
 
     // Update cursor only
     if (cursor_position == 0) {
-        myOLED_char(0, 50, "->");
-        myOLED_char(55, 50, "  "); // Clear other arrow
+        myOLED_char(75, 0, "->");
+        myOLED_char(75, 10, "  "); // Clear other arrow
     } else {
-        myOLED_char(0, 50, "  "); // Clear other arrow
-        myOLED_char(55, 50, "->");
+        myOLED_char(75, 0, "  "); // Clear other arrow
+        myOLED_char(75, 10, "->");
     }
 
     // Display the param value and mode
     if(current_state == 0){
     	switch (mode_index){
     	case 0:
-    		myOLED_char(90, 0, "CC");
-
+    		myOLED_char(0, 50, "CC:");
+			myOLED_float(21, 50, param_value);
     		break;
-
     	case 1:
-			myOLED_char(90, 0, "CV");
-
+			myOLED_char(0, 50, "CV:");
+			myOLED_float(21, 50, param_value);
     		break;
-
     	case 2:
-			myOLED_char(90, 0, "CP");
-
+			myOLED_char(0, 50, "CP:");
+			myOLED_float(21, 50, param_value);
     		break;
-
     	case 3:
-			myOLED_char(90, 0, "CR");
-
+			myOLED_char(0, 50, "CR:");
+			myOLED_float(21, 50, param_value);
     		break;
-
     	default:
     		break;
-
     	}
+
     }
     ssd1306_UpdateScreen();
 }
