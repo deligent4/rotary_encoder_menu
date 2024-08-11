@@ -92,6 +92,7 @@ Param_Mode_t param_mode	= {0.0};
 
 int cursor_position = 0;
 int mode_index = -1;  // Store the index of mode setting
+int mode_index_last = -1;
 int last_cursor_position = -1, new_rot_pos = 0;
 float volt = 0.0, curr = 0.0, chg = 0.0, temp = 0.0;
 float param_value = 00.0, param_value_limit = 0.0;
@@ -379,24 +380,24 @@ void display_home_screen(bool force_update) {
             }
         }
 
-    // Display the param value and mode
+    // Display the param value and mode if it is set
     if(current_state == 0){
     	switch (mode_index){
     	case 0:
     		myOLED_char(0, 50, "CC:");
-			myOLED_float(21, 50, param_value);
+			myOLED_float(21, 50, param_mode.current);
     		break;
     	case 1:
 			myOLED_char(0, 50, "CV:");
-			myOLED_float(21, 50, param_value);
+			myOLED_float(21, 50, param_mode.voltage);
     		break;
     	case 2:
 			myOLED_char(0, 50, "CP:");
-			myOLED_float(21, 50, param_value);
+			myOLED_float(21, 50, param_mode.power);
     		break;
     	case 3:
 			myOLED_char(0, 50, "CR:");
-			myOLED_float(21, 50, param_value);
+			myOLED_float(21, 50, param_mode.resistance);
     		break;
     	default:
     		break;
@@ -438,7 +439,6 @@ void display_parameter_setting(bool force_update) {
         myOLED_char(20, 40, "RETURN");
 
         // Check the state and print the mode in parameter setting screen
-        // Also check the MIN and MAX value of each mode to set limits on the value.
         if(current_state == 2){
         	switch(mode_index) {
         		case 0:
@@ -465,13 +465,24 @@ void display_parameter_setting(bool force_update) {
 
     printf("mode_index %d\n\v\r", mode_index);
 
-    // Always update the current digit and value
-    if(param_value >= 10.000){
-    	myOLED_float(0, 20, param_value);
-    }else{
-    	myOLED_float(7, 20, param_value);
-    	myOLED_int(0, 20, 0);				// Print "0" at fist location
-    }
+    // Fetch the current mode's parameter value
+	float display_value;
+
+	switch (mode_index) {
+		case 0: display_value = param_mode.current; break;
+		case 1: display_value = param_mode.voltage; break;
+		case 2: display_value = param_mode.power; break;
+		case 3: display_value = param_mode.resistance; break;
+		default: display_value = 0.0f; break;
+	}
+
+	// Display the value with proper formatting
+	if (display_value >= 10.000) {
+		myOLED_float(0, 20, display_value);
+	} else {
+		myOLED_float(7, 20, display_value);
+		myOLED_int(0, 20, 0);  // Print "0" at the first location
+	}
 
     // Clear previous cursor position by redrawing the entire line
     ssd1306_SetCursor(0, 30);
@@ -479,7 +490,6 @@ void display_parameter_setting(bool force_update) {
 
     // Draw cursor under the digit
     int cursor_x = digit_position * 7;  // Assuming 7 pixels width per character
-//    int cursot_y = 50;
     if(digit_position == MAX_DIGITS){
     	myOLED_char(40, 50, "^");  // Draw the cursor under "RETURN" text
     }else{
@@ -521,6 +531,7 @@ void update_encoder_state() {
     }
     old_rot_pos = new_rot_pos;
     put_parameter_limit();		// put limit on parameter values based on mode
+//    set_parameter_to_mode();	// set parameter to mode
     // putting limits
     if (cursor_position < 0) cursor_position = 0;
     if (current_state == HOME_SCREEN && cursor_position > 3) cursor_position = 3;
@@ -590,6 +601,12 @@ void update_parameter_value(int direction) {
 
 // Put limit on parameter value
 void put_parameter_limit(){
+	// RESET the param_value if mode is changed
+	if(mode_index_last != mode_index){
+		param_value = 0.0;
+		mode_index_last = mode_index;
+	}
+
 	// check the MIN and MAX value of each mode to set limits on the value.
 	if(current_state == 2){
 		switch(mode_index) {
@@ -599,6 +616,7 @@ void put_parameter_limit(){
 				}else if(param_value <= MIN_CC_VALUE){
 					param_value = MIN_CC_VALUE;
 				}
+				param_mode.current = param_value;
 				break;
 			case 1:
 				if(param_value >= MAX_CV_VALUE){
@@ -606,6 +624,7 @@ void put_parameter_limit(){
 				}else if(param_value <= MIN_CV_VALUE){
 					param_value = MIN_CV_VALUE;
 				}
+				param_mode.voltage =  param_value;
 				break;
 			case 2:
 				if(param_value >= MAX_CP_VALUE){
@@ -613,6 +632,7 @@ void put_parameter_limit(){
 				}else if(param_value <= MIN_CP_VALUE){
 					param_value = MIN_CP_VALUE;
 				}
+				param_mode.power = param_value;
 				break;
 			case 3:
 				if(param_value >= MAX_CR_VALUE){
@@ -620,6 +640,7 @@ void put_parameter_limit(){
 				}else if(param_value <= MIN_CR_VALUE){
 					param_value = MIN_CR_VALUE;
 				}
+				param_mode.resistance = param_value;
 				break;
 			default:
 				break;
@@ -629,15 +650,21 @@ void put_parameter_limit(){
 
 
 
-
 void handle_button_press() {
     if (rot_sw_state) {
     	switch (current_state) {
 			case HOME_SCREEN:
 				if (cursor_position == 0) {
-					current_state = MODE_SELECTION;
-				} else {
-					// Handle "TURN ON" functionality
+					current_state = MODE_SELECTION;			// GoTo MODE SELECTION PAGE
+				} else if (cursor_position == 1){
+					// Handle "TURN ON" functionality TODO
+				} else if (cursor_position == 2){			// Reset everything
+					current_state = HOME_SCREEN;			// not necessary to reset current_state
+					cursor_position = 0;
+					mode_index = -1;
+					param_value = 0.0;
+				} else if (cursor_position == 3){
+					__NOP();								// TODO
 				}
 				break;
 			case MODE_SELECTION:
