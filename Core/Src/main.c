@@ -102,6 +102,7 @@ uint16_t current_a_cnt = 0, current_b_cnt = 0, current_c_cnt = 0;
 bool rot_sw_state = false, a_sw_state = false, b_sw_state = false, c_sw_state = false;
 bool adjusting_digit = false; // Flag to check if adjusting digit
 volatile uint8_t digit_value = 0;
+bool output_on_flag = false;
 
 // 'ON', 140x81px
 const unsigned char ON_BITMAP[] = {
@@ -227,9 +228,9 @@ int main(void)
 
 //	  ssd1306_Fill(White);
 //      ssd1306_DrawBitmap(95,45,ON_BITMAP,29,17,White);
-      ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);
-
-      ssd1306_UpdateScreen();
+//      ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);
+//
+//      ssd1306_UpdateScreen();
 
 	  HAL_Delay(100); // Adjust the delay as needed
 
@@ -377,7 +378,7 @@ void update_display() {
 
 // Display Home Screen
 void display_home_screen(bool force_update) {
-    if (force_update) {
+    if (force_update || output_on_flag) {
         ssd1306_Fill(Black);			// Clear the display before printing
         myOLED_char(0, 0, "VT:");
         myOLED_float(21, 0, volt);
@@ -392,6 +393,15 @@ void display_home_screen(bool force_update) {
         myOLED_char(90, 10, "<ON>");			// Turn ON LOAD TODO
         myOLED_char(90, 20, "<RST>");			// Reset the LOAD
         myOLED_char(90, 30, "<HLP>");			// TODO
+
+        // Show ON or OFF bitmap on display for LOAD status
+        if(output_on_flag){
+        	myOLED_char(90, 10, "<OFF>");							// Print OFF in ON position if button is pressed
+        	output_on_flag = false;									// Change the flag state
+			ssd1306_DrawBitmap(95,45,ON_BITMAP,29,16,White);		//	Draw ON bitmap
+        }else{
+        	ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);		// Draw OFF bitmap
+        }
     }
 
     // Update cursor only
@@ -425,8 +435,9 @@ void display_home_screen(bool force_update) {
     	default:
     		break;
     	}
-
     }
+
+
     ssd1306_UpdateScreen();
 }
 
@@ -680,12 +691,14 @@ void handle_button_press() {
 				if (cursor_position == 0) {
 					current_state = MODE_SELECTION;			// GoTo MODE SELECTION PAGE
 				} else if (cursor_position == 1){
+					output_on_flag = true;
 					// Handle "TURN ON" functionality TODO
 				} else if (cursor_position == 2){			// Reset everything
 					current_state = HOME_SCREEN;			// not necessary to reset current_state
 					cursor_position = 0;
 					mode_index = -1;
 					param_value = 0.0;
+					output_on_flag = false;
 				} else if (cursor_position == 3){
 					__NOP();								// TODO
 				}
