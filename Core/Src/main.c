@@ -127,7 +127,9 @@ const unsigned char OFF_BITMAP[] = {
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void myOLED_char(uint16_t cursorX, uint16_t cursorY, char* data);
+void myOLED_char_big(uint16_t cursorX, uint16_t cursorY, char* data);
 void myOLED_float(uint16_t cursorX, uint16_t cursorY, float data);
+void myOLED_float_big(uint16_t cursorX, uint16_t cursorY, float data);
 void myOLED_int(uint16_t cursorX, uint16_t cursorY, uint16_t data);
 void myOLED_int8(uint16_t cursorX, uint16_t cursorY, uint8_t data);
 void Move_Cursor(void);
@@ -216,8 +218,6 @@ int main(void)
 		  HAL_GPIO_WritePin(LED_BLU_GPIO_Port, LED_BLU_Pin, 1);
 	  }
 
-//      printf("Hello World\n\r\v");
-
       update_encoder_state();
       handle_button_press();
       update_display();
@@ -226,12 +226,7 @@ int main(void)
       printf("cursor_position %d\n\r", cursor_position);
       printf("mode_index %d\n\r\v", mode_index);
 
-//      ssd1306_Fill(White);
-//      ssd1306_DrawBitmap(95,45,ON_BITMAP,29,17,White);
-//      ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);
-//      ssd1306_UpdateScreen();
-
-	  HAL_Delay(100); // Adjust the delay as needed
+	  HAL_Delay(2); // Adjust the delay as needed
 
     /* USER CODE END WHILE */
 
@@ -316,12 +311,26 @@ void myOLED_char(uint16_t cursorX, uint16_t cursorY, char* data){
 	ssd1306_WriteString(data, Font_7x10, White);
 }
 
+void myOLED_char_big(uint16_t cursorX, uint16_t cursorY, char* data){
+
+	ssd1306_SetCursor(cursorX, cursorY);
+	ssd1306_WriteString(data, Font_11x18, White);
+}
+
 void myOLED_float(uint16_t cursorX, uint16_t cursorY, float data){
 	char str_data[10];
 
 	sprintf(str_data, "%.3f", data);
 	ssd1306_SetCursor(cursorX, cursorY);
 	ssd1306_WriteString(str_data, Font_7x10, White);
+}
+
+void myOLED_float_big(uint16_t cursorX, uint16_t cursorY, float data){
+	char str_data[10];
+
+	sprintf(str_data, "%.3f", data);
+	ssd1306_SetCursor(cursorX, cursorY);
+	ssd1306_WriteString(str_data, Font_11x18, White);
 }
 
 void myOLED_int(uint16_t cursorX, uint16_t cursorY, uint16_t data){
@@ -379,57 +388,63 @@ void update_display() {
 void display_home_screen(bool force_update) {
     if (force_update || output_on_flag) {
         ssd1306_Fill(Black);			// Clear the display before printing
-        myOLED_char(0, 0, "VT:");
-        myOLED_float(21, 0, volt);
-        myOLED_char(0, 10, "CU:");
-        myOLED_float(21, 10, curr);
-        myOLED_char(0, 20, "CH:");
-        myOLED_float(21, 20, chg);
-        myOLED_char(0, 30, "TP:");
-        myOLED_float(21, 30, temp);
-        ssd1306_Line(70, 0, 70, 64, White);		// Draw line to separate the values and options
+        myOLED_char_big(0, 0, "V:");
+        myOLED_float_big(21, 0, volt);
+        myOLED_char_big(0, 18, "C:");
+        myOLED_float_big(21, 18, curr);
+        myOLED_char_big(0, 36, "Q:");
+        myOLED_float_big(21, 36, chg);
+        myOLED_char(0, 54, "t:");
+        myOLED_float(21, 54, temp);
+        ssd1306_Line(78, 0, 78, 50, White);		// Draw line to separate the values and options
         myOLED_char(90, 0, "<SET>");			// SET MODE
         myOLED_char(90, 10, "<ON>");			// Turn ON LOAD
         myOLED_char(90, 20, "<RST>");			// Reset the LOAD
-        myOLED_char(90, 30, "<HLP>");			// TODO
 
         // Show ON or OFF bitmap on display for LOAD status
         if(output_on_flag){
         	myOLED_char(90, 10, "<OFF>");							// Print OFF in ON position if button is pressed
         	output_on_flag = false;									// Change the flag state
-			ssd1306_DrawBitmap(95,45,ON_BITMAP,29,16,White);		//	Draw ON bitmap
+			ssd1306_DrawBitmap(90, 31, ON_BITMAP, 29, 16, White);		//	Draw ON bitmap
         }else{
-        	ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);		// Draw OFF bitmap
+        	ssd1306_DrawBitmap(90, 31, OFF_BITMAP, 29, 16, White);		// Draw OFF bitmap
         }
     }
 
     // Update cursor only
-    for (int i = 0; i < 4; i++) {
+    uint8_t scroll_num = 3;
+    for (int i = 0; i < scroll_num; i++) {
             if (i == cursor_position) {
-                myOLED_char(75, i* 10, "->");
+                myOLED_char(82, i* 10, ">");
             } else {
-                myOLED_char(75, i* 10, "  ");
+                myOLED_char(82, i* 10, " ");
             }
         }
 
-    // Display the param value and mode if it is set
+ // Display the param value and mode if it is set
     if(current_state == 0){
+    	uint8_t	x_mode = 68;
+    	uint8_t y_mode = 54;
+    	uint8_t x_val = 90;
+    	uint8_t y_val = 54;
+
+    	ssd1306_Line(60, y_mode, 60, 64, White);		// Draw line
     	switch (mode_index){
     	case 0:
-    		myOLED_char(0, 50, "CC:");
-			myOLED_float(21, 50, param_mode.current);
+    		myOLED_char(x_mode, y_mode, "CC-");
+			myOLED_float(x_val, y_val, param_mode.current);
     		break;
     	case 1:
-			myOLED_char(0, 50, "CV:");
-			myOLED_float(21, 50, param_mode.voltage);
+			myOLED_char(x_mode, y_mode, "CV-");
+			myOLED_float(x_val, y_val, param_mode.voltage);
     		break;
     	case 2:
-			myOLED_char(0, 50, "CP:");
-			myOLED_float(21, 50, param_mode.power);
+			myOLED_char(x_mode, y_mode, "CP-");
+			myOLED_float(x_val, y_val, param_mode.power);
     		break;
     	case 3:
-			myOLED_char(0, 50, "CR:");
-			myOLED_float(21, 50, param_mode.resistance);
+			myOLED_char(x_mode, y_mode, "CR-");
+			myOLED_float(x_val, y_val, param_mode.resistance);
     		break;
     	default:
     		break;
@@ -451,7 +466,8 @@ void display_mode_selection(bool force_update) {
     }
 
     // Update cursor only
-    for (int i = 0; i < 4; i++) {
+    uint8_t num_of_modes = 4;
+    for (int i = 0; i < num_of_modes; i++) {
         if (i == cursor_position) {
             myOLED_char(0, i* 10, "->");
         } else {
@@ -564,10 +580,10 @@ void update_encoder_state() {
     }
     old_rot_pos = new_rot_pos;
     put_parameter_limit();		// put limit on parameter values based on mode
-//    set_parameter_to_mode();	// set parameter to mode
+
     // putting limits
     if (cursor_position < 0) cursor_position = 0;
-    if (current_state == HOME_SCREEN && cursor_position > 3) cursor_position = 3;
+    if (current_state == HOME_SCREEN && cursor_position > 2) cursor_position = 2;
     if (current_state == MODE_SELECTION && cursor_position > 3) cursor_position = 3;
     if (current_state == PARAMETER_SETTING && digit_position > MAX_DIGITS) digit_position = MAX_DIGITS;
     if (digit_position < 0) digit_position = 0;
@@ -698,8 +714,6 @@ void handle_button_press() {
 					mode_index = -1;
 					param_value = 0.0;
 					output_on_flag = false;
-				} else if (cursor_position == 3){
-					__NOP();								// TODO
 				}
 				break;
 			case MODE_SELECTION:
