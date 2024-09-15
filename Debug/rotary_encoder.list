@@ -39,13 +39,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_line   00015ddb  00000000  00000000  000417ee  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000900e6  00000000  00000000  000575c9  2**0
+ 18 .debug_str    000900d7  00000000  00000000  000575c9  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000086  00000000  00000000  000e76af  2**0
+ 19 .comment      00000086  00000000  00000000  000e76a0  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00005ef4  00000000  00000000  000e7738  2**2
+ 20 .debug_frame  00005ef4  00000000  00000000  000e7728  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000004d  00000000  00000000  000ed62c  2**0
+ 21 .debug_line_str 0000004d  00000000  00000000  000ed61c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1896,9 +1896,9 @@ int main(void)
  80012f0:	4619      	mov	r1, r3
  80012f2:	480e      	ldr	r0, [pc, #56]	@ (800132c <main+0xd4>)
  80012f4:	f006 fc96 	bl	8007c24 <iprintf>
+//      ssd1306_Fill(White);
 //      ssd1306_DrawBitmap(95,45,ON_BITMAP,29,17,White);
 //      ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);
-//
 //      ssd1306_UpdateScreen();
 
 	  HAL_Delay(100); // Adjust the delay as needed
@@ -2097,18 +2097,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  800147c:	080014c9 	.word	0x080014c9
  8001480:	08001485 	.word	0x08001485
 	case ROT_SW_Pin:
-		rot_sw_state = true;
+		sw_rot_state = true;
  8001484:	4b13      	ldr	r3, [pc, #76]	@ (80014d4 <HAL_GPIO_EXTI_Callback+0xe8>)
  8001486:	2201      	movs	r2, #1
  8001488:	701a      	strb	r2, [r3, #0]
 		break;
  800148a:	e01e      	b.n	80014ca <HAL_GPIO_EXTI_Callback+0xde>
 	case A_SW_Pin:
-		a_sw_state = true;
+		sw_a_state = true;
  800148c:	4b12      	ldr	r3, [pc, #72]	@ (80014d8 <HAL_GPIO_EXTI_Callback+0xec>)
  800148e:	2201      	movs	r2, #1
  8001490:	701a      	strb	r2, [r3, #0]
-		current_a_cnt++;
+		sw_a_cnt++;
  8001492:	4b12      	ldr	r3, [pc, #72]	@ (80014dc <HAL_GPIO_EXTI_Callback+0xf0>)
  8001494:	881b      	ldrh	r3, [r3, #0]
  8001496:	3301      	adds	r3, #1
@@ -2118,11 +2118,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		break;
  800149e:	e014      	b.n	80014ca <HAL_GPIO_EXTI_Callback+0xde>
 	case B_SW_Pin:
-		b_sw_state = true;
+		sw_b_state = true;
  80014a0:	4b0f      	ldr	r3, [pc, #60]	@ (80014e0 <HAL_GPIO_EXTI_Callback+0xf4>)
  80014a2:	2201      	movs	r2, #1
  80014a4:	701a      	strb	r2, [r3, #0]
-		current_b_cnt++;
+		sw_b_cnt++;
  80014a6:	4b0f      	ldr	r3, [pc, #60]	@ (80014e4 <HAL_GPIO_EXTI_Callback+0xf8>)
  80014a8:	881b      	ldrh	r3, [r3, #0]
  80014aa:	3301      	adds	r3, #1
@@ -2132,11 +2132,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		break;
  80014b2:	e00a      	b.n	80014ca <HAL_GPIO_EXTI_Callback+0xde>
 	case C_SW_Pin:
-		c_sw_state = true;
+		sw_c_state = true;
  80014b4:	4b0c      	ldr	r3, [pc, #48]	@ (80014e8 <HAL_GPIO_EXTI_Callback+0xfc>)
  80014b6:	2201      	movs	r2, #1
  80014b8:	701a      	strb	r2, [r3, #0]
-		current_c_cnt++;
+		sw_c_cnt++;
  80014ba:	4b0c      	ldr	r3, [pc, #48]	@ (80014ec <HAL_GPIO_EXTI_Callback+0x100>)
  80014bc:	881b      	ldrh	r3, [r3, #0]
  80014be:	3301      	adds	r3, #1
@@ -2519,7 +2519,7 @@ void display_home_screen(bool force_update) {
  8001764:	2100      	movs	r1, #0
  8001766:	205a      	movs	r0, #90	@ 0x5a
  8001768:	f7ff fec2 	bl	80014f0 <myOLED_char>
-        myOLED_char(90, 10, "<ON>");			// Turn ON LOAD TODO
+        myOLED_char(90, 10, "<ON>");			// Turn ON LOAD
  800176c:	4a5c      	ldr	r2, [pc, #368]	@ (80018e0 <display_home_screen+0x20c>)
  800176e:	210a      	movs	r1, #10
  8001770:	205a      	movs	r0, #90	@ 0x5a
@@ -3716,7 +3716,7 @@ void put_parameter_limit(){
 void handle_button_press() {
  8001ff0:	b480      	push	{r7}
  8001ff2:	af00      	add	r7, sp, #0
-    if (rot_sw_state) {
+    if (sw_rot_state) {
  8001ff4:	4b35      	ldr	r3, [pc, #212]	@ (80020cc <handle_button_press+0xdc>)
  8001ff6:	781b      	ldrb	r3, [r3, #0]
  8001ff8:	2b00      	cmp	r3, #0
@@ -3854,7 +3854,7 @@ void handle_button_press() {
 				break;
  80020ba:	bf00      	nop
         }
-        rot_sw_state = false; // Reset button state
+        sw_rot_state = false; // Reset button state
  80020bc:	4b03      	ldr	r3, [pc, #12]	@ (80020cc <handle_button_press+0xdc>)
  80020be:	2200      	movs	r2, #0
  80020c0:	701a      	strb	r2, [r3, #0]

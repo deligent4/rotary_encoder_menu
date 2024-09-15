@@ -98,8 +98,8 @@ float volt = 0.0, curr = 0.0, chg = 0.0, temp = 0.0;
 float param_value = 00.0, param_value_limit = 0.0;
 int digit_position = 0;
 int last_rot_cnt = 0;
-uint16_t current_a_cnt = 0, current_b_cnt = 0, current_c_cnt = 0;
-bool rot_sw_state = false, a_sw_state = false, b_sw_state = false, c_sw_state = false;
+uint16_t sw_a_cnt = 0, sw_b_cnt = 0, sw_c_cnt = 0;
+bool sw_rot_state = false, sw_a_state = false, sw_b_state= false, sw_c_state= false;
 bool adjusting_digit = false; // Flag to check if adjusting digit
 volatile uint8_t digit_value = 0;
 bool output_on_flag = false;
@@ -226,10 +226,9 @@ int main(void)
       printf("cursor_position %d\n\r", cursor_position);
       printf("mode_index %d\n\r\v", mode_index);
 
-//	  ssd1306_Fill(White);
+//      ssd1306_Fill(White);
 //      ssd1306_DrawBitmap(95,45,ON_BITMAP,29,17,White);
 //      ssd1306_DrawBitmap(95,45,OFF_BITMAP,29,16,White);
-//
 //      ssd1306_UpdateScreen();
 
 	  HAL_Delay(100); // Adjust the delay as needed
@@ -291,19 +290,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	switch(GPIO_Pin){
 	case ROT_SW_Pin:
-		rot_sw_state = true;
+		sw_rot_state = true;
 		break;
 	case A_SW_Pin:
-		a_sw_state = true;
-		current_a_cnt++;
+		sw_a_state = true;
+		sw_a_cnt++;
 		break;
 	case B_SW_Pin:
-		b_sw_state = true;
-		current_b_cnt++;
+		sw_b_state = true;
+		sw_b_cnt++;
 		break;
 	case C_SW_Pin:
-		c_sw_state = true;
-		current_c_cnt++;
+		sw_c_state = true;
+		sw_c_cnt++;
 		break;
 	default:
 //		a_sw_state = b_sw_state = c_sw_state = false;
@@ -390,7 +389,7 @@ void display_home_screen(bool force_update) {
         myOLED_float(21, 30, temp);
         ssd1306_Line(70, 0, 70, 64, White);		// Draw line to separate the values and options
         myOLED_char(90, 0, "<SET>");			// SET MODE
-        myOLED_char(90, 10, "<ON>");			// Turn ON LOAD TODO
+        myOLED_char(90, 10, "<ON>");			// Turn ON LOAD
         myOLED_char(90, 20, "<RST>");			// Reset the LOAD
         myOLED_char(90, 30, "<HLP>");			// TODO
 
@@ -685,7 +684,7 @@ void put_parameter_limit(){
 
 
 void handle_button_press() {
-    if (rot_sw_state) {
+    if (sw_rot_state) {
     	switch (current_state) {
 			case HOME_SCREEN:
 				if (cursor_position == 0) {
@@ -723,7 +722,7 @@ void handle_button_press() {
 			default:
 				break;
         }
-        rot_sw_state = false; // Reset button state
+        sw_rot_state = false; // Reset button state
     }
 }
 
