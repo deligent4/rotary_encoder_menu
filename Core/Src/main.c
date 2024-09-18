@@ -42,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MAX_DIGITS 				7
+#define MAX_DIGITS 				5
 
 /*
  * MAXIMUM AND MINIMUM SETTINGS FOR LOAD
@@ -386,7 +386,7 @@ void display_home_screen(bool force_update){
 		myOLED_char_big(0, 36, "Q:");
 		myOLED_float_big(21, 36, chg);
 		myOLED_char(0, 54, "t:");
-		myOLED_float(21, 54, temp);
+		myOLED_int(15, 54, (uint16_t)temp);
 		ssd1306_Line(78, 0, 78, 50, White);	// Draw line to separate the values and options
 		myOLED_char(90, 0, "<SET>");			// SET MODE
 		myOLED_char(90, 10, "<ON>");			// Turn ON LOAD
@@ -394,7 +394,7 @@ void display_home_screen(bool force_update){
 
 		// Show ON or OFF bitmap on display for LOAD status
 		if(output_on_flag){
-			myOLED_char(90, 10, "<OFF>");// Print OFF in ON position if button is pressed
+//			myOLED_char(90, 10, "<OFF>");// Print OFF in ON position if button is pressed
 			output_on_flag = false;						// Change the flag state
 			ssd1306_DrawBitmap(90, 31, ON_BITMAP, 29, 16, White);//	Draw ON bitmap
 		}else{
@@ -414,27 +414,27 @@ void display_home_screen(bool force_update){
 
 	// Display the param value and mode if it is set
 	if(current_state == 0){
-		uint8_t x_mode = 68;
+		uint8_t x_mode = 50;
 		uint8_t y_mode = 54;
-		uint8_t x_val = 90;
+		uint8_t x_val = 80;
 		uint8_t y_val = 54;
 
-		ssd1306_Line(60, y_mode, 60, 64, White);		// Draw line
+		ssd1306_Line(45, y_mode, 45, 64, White);		// Draw line
 		switch(mode_index){
 		case 0:
-			myOLED_char(x_mode, y_mode, "CC-");
+			myOLED_char(x_mode, y_mode, "CC:");
 			myOLED_float(x_val, y_val, param_mode.current);
 			break;
 		case 1:
-			myOLED_char(x_mode, y_mode, "CV-");
+			myOLED_char(x_mode, y_mode, "CV:");
 			myOLED_float(x_val, y_val, param_mode.voltage);
 			break;
 		case 2:
-			myOLED_char(x_mode, y_mode, "CP-");
+			myOLED_char(x_mode, y_mode, "CP:");
 			myOLED_float(x_val, y_val, param_mode.power);
 			break;
 		case 3:
-			myOLED_char(x_mode, y_mode, "CR-");
+			myOLED_char(x_mode, y_mode, "CR:");
 			myOLED_float(x_val, y_val, param_mode.resistance);
 			break;
 		default:
@@ -474,8 +474,6 @@ void display_parameter_setting(bool force_update){
 		// Redraw entire screen if forced
 		ssd1306_Fill(Black);
 		myOLED_char(0, 0, "Set Value:");
-		myOLED_char(20, 40, "RETURN");
-		myOLED_char(80, 40, "OK");
 
 		// Check the state and print the mode in parameter setting screen
 		if(current_state == 2){
@@ -502,7 +500,7 @@ void display_parameter_setting(bool force_update){
 		}
 	}
 
-	printf("mode_index %d\n\v\r", mode_index);
+//	printf("mode_index %d\n\v\r", mode_index);
 
 	// Fetch the current mode's parameter value
 	float display_value;
@@ -534,24 +532,18 @@ void display_parameter_setting(bool force_update){
 	}
 
 	// Clear previous cursor position by redrawing the entire line
-	ssd1306_SetCursor(0, 30);
-	ssd1306_WriteString("        ", Font_7x10, White); //  7 characters wide space to clear
-
+	myOLED_char(0, 30, "         ");
 	// Draw cursor under the digit
 	uint8_t cursor_x;
-	if(digit_position == MAX_DIGITS - 1){
-		cursor_x = digit_position * 7;		// 7 pixels width per character
-		myOLED_char(40, 50, "^");  			// Draw the cursor under "RETURN" text
-		myOLED_char(80, 50, " ");			// Clear the cursor under "OK" label
-	}else if(digit_position == MAX_DIGITS){
-		myOLED_char(80, 50, "^");  			// Draw the cursor under "OK" text
-		myOLED_char(40, 50, " ");			// Clear the cursor under "RETURN" label
-	}else{
-		cursor_x = digit_position * 7;		// 7 pixels width per character
-		myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
-		myOLED_char(40, 50, " ");			// Clear the cursor under "RETURN" label
-		myOLED_char(80, 50, " ");			// Clear the cursor under "OK" label
-	}
+	cursor_x = digit_position * 7;		// 7 pixels width per character
+	myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
+
+//    if(digit_position == MAX_DIGITS){
+//    	myOLED_char(40, 50, "^");  // Draw the cursor under "RETURN" text
+//    }else{
+//    	myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
+//    	myOLED_char(40, 50, " ");			// Clears the cursor under "RETURN" label
+//    }
 
 	// Refresh the display after updating
 	ssd1306_UpdateScreen();
@@ -731,14 +723,9 @@ void handle_button_press(){
 			adjusting_digit = false;
 			break;
 		case PARAMETER_SETTING:
-//			adjusting_digit = true;
-			if(digit_position == MAX_DIGITS){// Return to home by saving param value
+			if(sw_c_state){// Return to home by saving param value
 			current_state = RETURN_TO_HOME;
 			digit_position = 0;
-			}
-			if(digit_position == MAX_DIGITS - 1){// Return to home without saving param value
-				current_state = RETURN_TO_HOME;
-				digit_position = 0;
 			}
 			break;
 		default:
@@ -747,13 +734,12 @@ void handle_button_press(){
 		sw_c_state = false; // Reset button state
 	}
 
-	if(digit_position < (MAX_DIGITS - 1) && current_state == PARAMETER_SETTING) {
+	if(current_state == PARAMETER_SETTING) {
 		adjusting_digit = true;
 	}else adjusting_digit = false;
 
 	if(new_b_cnt > old_b_cnt){
 		digit_position++;
-//				if(digit_position < 0) digit_position = 0;
 	}else if(new_a_cnt > old_a_cnt) {
 		digit_position--;
 	}

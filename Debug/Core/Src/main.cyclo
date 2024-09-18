@@ -12,9 +12,9 @@
 ../Core/Src/main.c:344:6:update_display	14
 ../Core/Src/main.c:379:6:display_home_screen	11
 ../Core/Src/main.c:449:6:display_mode_selection	5
-../Core/Src/main.c:472:6:display_parameter_setting	14
-../Core/Src/main.c:561:6:update_encoder_state	14
-../Core/Src/main.c:598:6:update_parameter_value	12
-../Core/Src/main.c:657:6:put_parameter_limit	15
-../Core/Src/main.c:705:6:handle_button_press	15
-../Core/Src/main.c:770:6:Error_Handler	1
+../Core/Src/main.c:472:6:display_parameter_setting	12
+../Core/Src/main.c:553:6:update_encoder_state	14
+../Core/Src/main.c:590:6:update_parameter_value	12
+../Core/Src/main.c:649:6:put_parameter_limit	15
+../Core/Src/main.c:697:6:handle_button_press	13
+../Core/Src/main.c:756:6:Error_Handler	1
