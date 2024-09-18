@@ -291,7 +291,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		sw_c_cnt++;
 		break;
 	default:
-//		a_sw_state = b_sw_state = c_sw_state = false;
 		break;
 	}
 }
@@ -371,7 +370,6 @@ void update_display(){
 	default:
 		break;
 	}
-
 	last_cursor_position = cursor_position;
 }
 
@@ -394,7 +392,6 @@ void display_home_screen(bool force_update){
 
 		// Show ON or OFF bitmap on display for LOAD status
 		if(output_on_flag){
-//			myOLED_char(90, 10, "<OFF>");// Print OFF in ON position if button is pressed
 			output_on_flag = false;						// Change the flag state
 			ssd1306_DrawBitmap(90, 31, ON_BITMAP, 29, 16, White);//	Draw ON bitmap
 		}else{
@@ -477,30 +474,38 @@ void display_parameter_setting(bool force_update){
 
 		// Check the state and print the mode in parameter setting screen
 		if(current_state == 2){
+			myOLED_char(0, 42, "MIN:");
+			myOLED_char(0, 52, "MAX:");
 			switch(mode_index){
 			case 0:
 				myOLED_char(70, 0, "CC");
 				myOLED_char(70, 20, "Amp");
+				myOLED_float(35, 42, (float)MIN_CC_VALUE);
+				myOLED_float(35, 52, (float)MAX_CC_VALUE);
 				break;
 			case 1:
 				myOLED_char(70, 0, "CV");
 				myOLED_char(70, 20, "Volt");
+				myOLED_float(35, 42, (float)MIN_CV_VALUE);
+				myOLED_float(35, 52, (float)MAX_CV_VALUE);
 				break;
 			case 2:
 				myOLED_char(70, 0, "CP");
 				myOLED_char(70, 20, "Watt");
+				myOLED_float(35, 42, (float)MIN_CP_VALUE);
+				myOLED_float(35, 52, (float)MAX_CP_VALUE);
 				break;
 			case 3:
 				myOLED_char(70, 0, "CR");
 				myOLED_char(70, 20, "Ohm");
+				myOLED_float(35, 42, (float)MIN_CR_VALUE);
+				myOLED_float(35, 52, (float)MAX_CR_VALUE);
 				break;
 			default:
 				break;
 			}
 		}
 	}
-
-//	printf("mode_index %d\n\v\r", mode_index);
 
 	// Fetch the current mode's parameter value
 	float display_value;
@@ -537,13 +542,6 @@ void display_parameter_setting(bool force_update){
 	uint8_t cursor_x;
 	cursor_x = digit_position * 7;		// 7 pixels width per character
 	myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
-
-//    if(digit_position == MAX_DIGITS){
-//    	myOLED_char(40, 50, "^");  // Draw the cursor under "RETURN" text
-//    }else{
-//    	myOLED_char(cursor_x, 30, "^");  	// Draw the cursor
-//    	myOLED_char(40, 50, " ");			// Clears the cursor under "RETURN" label
-//    }
 
 	// Refresh the display after updating
 	ssd1306_UpdateScreen();
