@@ -95,11 +95,14 @@ float param_value = 00.0, param_value_limit = 0.0;
 uint8_t digit_position = 0;
 int last_rot_cnt = 0;
 uint16_t sw_a_cnt = 0, sw_b_cnt = 0, sw_c_cnt = 0;
-bool sw_rot_state = false, sw_a_state = false, sw_b_state = false, sw_c_state =
-false;
+bool sw_rot_state = false,
+		sw_a_state = false,
+		sw_b_state = false,
+		sw_c_state = false;
 bool adjusting_digit = false; // Flag to check if adjusting digit
 volatile uint8_t digit_value = 0;
 bool output_on_flag = false;
+bool force_update;
 
 uint16_t new_rot_pos, new_a_cnt ,new_b_cnt;
 static uint16_t old_a_cnt = 0, old_b_cnt = 0, old_rot_pos = 0;
@@ -165,47 +168,48 @@ PUTCHAR_PROTOTYPE{
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
-int main(void){
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
 
-	/* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
 
-	/* USER CODE END 1 */
+  /* USER CODE END 1 */
 
-	/* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* Configure the system clock */
-	SystemClock_Config();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	/* USER CODE BEGIN SysInit */
-	/* USER CODE END SysInit */
+  /* USER CODE BEGIN SysInit */
+  /* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_DMA_Init();
-	MX_TIM3_Init();
-	MX_I2C1_Init();
-	MX_USART2_UART_Init();
-	/* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_TIM3_Init();
+  MX_I2C1_Init();
+  MX_USART2_UART_Init();
+  /* USER CODE BEGIN 2 */
 	HAL_TIM_Encoder_Start_IT(&htim3, TIM_CHANNEL_ALL);
 	ssd1306_Init();
 	update_display(); // Ensure the initial display is updated
 
 	HAL_Delay(100);
 
-	/* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 	while(1){
 		tick = HAL_GetTick();
 
@@ -223,48 +227,51 @@ int main(void){
 		HAL_Delay(2); // Adjust the delay as needed
 //      printf("hello");
 
-		/* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-		/* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 
 	}
-	/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void){
-	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
-	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-	/** Initializes the RCC Oscillators according to the specified parameters
-	 * in the RCC_OscInitTypeDef structure.
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-	if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK){
-		Error_Handler();
-	}
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	/** Initializes the CPU, AHB and APB buses clocks
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK){
-		Error_Handler();
-	}
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /* USER CODE BEGIN 4 */
@@ -343,7 +350,7 @@ void myOLED_int8(uint16_t cursorX, uint16_t cursorY, uint8_t data){
 void update_display(){
 	static Menu_State_e last_state = HOME_SCREEN;
 	static bool first_update = true;
-	bool force_update = (current_state != last_state) || first_update;
+	force_update = (current_state != last_state) || first_update || !output_on_flag;
 
 	if(force_update){
 		last_state = current_state;
@@ -392,10 +399,11 @@ void display_home_screen(bool force_update){
 
 		// Show ON or OFF bitmap on display for LOAD status
 		if(output_on_flag){
-			output_on_flag = false;						// Change the flag state
-			ssd1306_DrawBitmap(90, 31, ON_BITMAP, 29, 16, White);//	Draw ON bitmap
+//			output_on_flag = false;									// Change the flag state
+			myOLED_char(90, 10, "<OFF>");							// Print OFF in ON position if button is pressed
+			ssd1306_DrawBitmap(90, 31, ON_BITMAP, 29, 16, White);	//	Draw ON bitmap
 		}else{
-			ssd1306_DrawBitmap(90, 31, OFF_BITMAP, 29, 16, White);// Draw OFF bitmap
+			ssd1306_DrawBitmap(90, 31, OFF_BITMAP, 29, 16, White);	// Draw OFF bitmap
 		}
 	}
 
@@ -701,8 +709,13 @@ void handle_button_press(){
 		case HOME_SCREEN:
 			if(cursor_position == 0){
 				current_state = MODE_SELECTION;		// GoTo MODE SELECTION PAGE
-			}else if(cursor_position == 1){
+				output_on_flag = false;				// turn off when page is changed
+			}else if(cursor_position == 1 && (!output_on_flag)){
 				output_on_flag = true;
+				// Handle "TURN ON" functionality
+			}else if(cursor_position == 1 && output_on_flag){
+				output_on_flag = false;
+				force_update = true;
 				// Handle "TURN ON" functionality
 			}else if(cursor_position == 2){			// Reset everything
 				current_state = HOME_SCREEN;// not necessary to reset current_state
@@ -711,7 +724,7 @@ void handle_button_press(){
 				param_value = 0.0;
 				output_on_flag = false;
 			}
-			adjusting_digit = false;
+			adjusting_digit = false;			// Disable adjusting in param setting
 			break;
 		case MODE_SELECTION:
 			current_state = PARAMETER_SETTING;			// go to next state
@@ -748,16 +761,17 @@ void handle_button_press(){
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void){
-	/* USER CODE BEGIN Error_Handler_Debug */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while(1){
 	}
-	/* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
